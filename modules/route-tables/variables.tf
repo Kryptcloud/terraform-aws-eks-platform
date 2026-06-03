@@ -18,9 +18,9 @@ variable "private_subnet_ids" {
   description = "list of private subnet ids for route table associations"
 }
 
-variable "nat_gateway_id" {
-  type = string
-  description = "id of the nat gateway for private route table"
+variable "nat_gateway_ids" {
+  type = list(string)
+  description = "ids of the nat gateways for private route table"
 }
 
 variable "internet_gateway_id" {

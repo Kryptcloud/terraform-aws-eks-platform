@@ -39,7 +39,7 @@ module "route_tables" {
   public_subnet_ids   = module.subnets.public_subnet_ids
   private_subnet_ids  = module.subnets.private_subnet_ids
   internet_gateway_id = module.internet_gateway.igw_id
-  nat_gateway_id      = module.nat_gateway.nat_id
+  nat_gateway_ids     = module.nat_gateway.nat_gateway_ids
   environment         = var.environment
 }
 
