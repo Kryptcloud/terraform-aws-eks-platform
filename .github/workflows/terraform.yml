@@ -50,7 +50,7 @@ jobs:
 
       # 7. Generate a secure, offline change-preview calculation
       - name: Calculate Plan (Dev Environment)
-        run: terraform plan -var-file="dev.tfvars" -out=tfplan.binary
+        run: terraform plan -var-file="variables/dev.tfvars" -out=tfplan.binary
 
       # 8. Deploy the infrastructure ONLY if pushing to the main branch
       - name: Deploy Live Infrastructure Change
