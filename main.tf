@@ -27,7 +27,7 @@ module "internet_gateway" {
 
 module "nat_gateway" {
   source            = "./modules/nat"
-  public_subnet_ids = module.public_subnet_ids
+  public_subnet_ids = module.subnets.public_subnet_ids
   environment       = var.environment
 
 }
@@ -36,8 +36,8 @@ module "nat_gateway" {
 module "route_tables" {
   source              = "./modules/route-tables"
   vpc_id              = module.vpc.vpc_id
-  public_subnet_ids   = module.public_subnet_ids
-  private_subnet_ids  = module.private_subnet_ids
+  public_subnet_ids   = module.subnets.public_subnet_ids
+  private_subnet_ids  = module.subnets.private_subnet_ids
   internet_gateway_id = module.internet_gateway.igw_id
   nat_gateway_id      = module.nat_gateway.nat_id
   environment         = var.environment
@@ -76,7 +76,7 @@ module "nodegroup" {
   source             = "./modules/nodegroup"
   environment        = var.environment
   cluster_name       = module.eks.cluster_name
-  node_role_arn      = module.iam.eks_node_role_arn
+  node_role_arn      = module.iam.eks_node_group_role_arn
   private_subnet_ids = module.subnets.private_subnet_ids
   instance_types     = var.instance_types
 }
