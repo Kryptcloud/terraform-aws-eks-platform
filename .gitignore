@@ -1,0 +1,24 @@
+# Local .terraform internal execution directories
+**/.terraform/*
+
+# The automatic lock file containing provider binary tracking metadata
+.terraform.lock.hcl
+
+# Local terraform state record cache files (Since I migrated to S3, ignore these completely)
+*.tfstate
+*.tfstate.*
+*.tfstate.lock.info
+
+# Crash log files generated during system exceptions
+crash.log
+crash.*.log
+
+# Offline compiled terraform plan binary caches
+*.binary
+*tfplan*
+
+# Ignore Mac OS hidden desktop interface configuration properties
+.DS_Store
+# Local compiled application files (We compile this inside the Docker container)
+dist/
+node_modules/

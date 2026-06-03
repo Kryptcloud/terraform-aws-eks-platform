@@ -1,0 +1,58 @@
+name: "Terraform AWS Platform Pipeline"
+
+on:
+  push:
+    branches:
+      - dev-branch
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: "Terraform Automation"
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clone the repository code onto the GitHub runner machine
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # 2. Install the correct version of the Terraform CLI binary
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      # 3. Authenticate with my AWS Account using secure secrets
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+
+      # 4. Check that my code satisfies 'terraform fmt'
+      - name: Check Code Formatting
+        run: terraform fmt -check
+
+      # 5. Initialize the backend workspace and download provider plugins
+      - name: Initialize Terraform Working Directory
+        run: terraform init
+
+      # 6. Validate that all cross-module variables map safely
+      - name: Validate Infrastructure Code Syntax
+        run: terraform validate
+
+      # 7. Generate a secure, offline change-preview calculation
+      - name: Calculate Plan (Dev Environment)
+        run: terraform plan -var-file="dev.tfvars" -out=tfplan.binary
+
+      # 8. Deploy the infrastructure ONLY if pushing to the main branch
+      - name: Deploy Live Infrastructure Change
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan.binary
