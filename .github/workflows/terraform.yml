@@ -13,22 +13,22 @@ permissions:
   contents: read
 
 jobs:
-  terraform:
-    name: "Terraform Automation"
+  # ==========================================
+  # STAGE 1: INFRASTRUCTURE MANAGEMENT
+  # ==========================================
+  infrastructure:
+    name: "Infrastructure (Terraform)"
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Clone the repository code onto the GitHub runner machine
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      # 2. Install the correct version of the Terraform CLI binary
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
 
-      # 3. Authenticate with my AWS Account using secure secrets
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -36,23 +36,57 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # 4. Check that my code satisfies 'terraform fmt'
       - name: Check Code Formatting
         run: terraform fmt -check
 
-      # 5. Initialize the backend workspace and download provider plugins
       - name: Initialize Terraform Working Directory
         run: terraform init
 
-      # 6. Validate that all cross-module variables map safely
       - name: Validate Infrastructure Code Syntax
         run: terraform validate
 
-      # 7. Generate a secure, offline change-preview calculation
       - name: Calculate Plan (Dev Environment)
         run: terraform plan -var-file="variables/dev.tfvars" -out=tfplan.binary
 
-      # 8. Deploy the infrastructure ONLY if pushing to the main branch
       - name: Deploy Live Infrastructure Change
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve tfplan.binary
+
+  # ==========================================
+  # STAGE 2: APPLICATION BUILD & DEPLOYMENT
+  # ==========================================
+  build_and_deploy:
+    name: "Application Build & Deploy"
+    needs: infrastructure # <-- This makes Stage 2 wait for Stage 1 to finish successfully!
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' # Only runs on main branch deployments
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Application Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: dev-my-kubernetes-app
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f app/src/Dockerfile app/src
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Authenticate Kubeconfig & Deploy to EKS
+        run: |
+          aws eks update-kubeconfig --region eu-north-1 --name dev-vpc-eks
+          sed -i "s|IMAGE_PLACEHOLDER|${{ steps.login-ecr.outputs.registry }}/dev-my-kubernetes-app:${{ github.sha }}|g" kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/
