@@ -62,10 +62,6 @@ Users
 # Architecture Diagram
 Check Diagram folder on the repo
 
-<<<<<<< HEAD
-=======
-![Architecture](./diagrams/Architecture.png)
->>>>>>> 4b52e1e4c294f436b41479444320cb71cb3ef7d9
 
 
 # Technology Stack
@@ -539,37 +535,7 @@ The platform was successfully validated through:
 * Docker image builds
 * Kubernetes deployments
 * GitHub Actions automation
-<<<<<<< HEAD
 * Application Load Balancer provisioning with a live public address
-=======
-* Application Load Balancer integration
-
-
-
-
-
-## GitHub Actions Pipeline
-
-Insert successful workflow execution screenshot here.
-
-
-
-## Amazon EKS Cluster
-
-Insert EKS cluster screenshot here.
-
-
-
-## Amazon ECR Repository
-
-Insert ECR repository screenshot here.
-
-
-
-## Running Kubernetes Pods
-
-Insert kubectl get pods screenshot here.
->>>>>>> 4b52e1e4c294f436b41479444320cb71cb3ef7d9
 
 
 
