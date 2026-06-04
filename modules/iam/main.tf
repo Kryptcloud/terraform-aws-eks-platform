@@ -8,7 +8,7 @@ data "aws_iam_policy_document" "eks_cluster_assume_role" {
 
     principals {
       type        = "Service"
-      identifiers = ["://amazonaws.com"]
+      identifiers = ["eks.amazonaws.com"]
     }
   }
 }
@@ -43,7 +43,7 @@ data "aws_iam_policy_document" "eks_nodes_assume_role" {
 
     principals {
       type        = "Service"
-      identifiers = ["://amazonaws.com"]
+      identifiers = ["ec2.amazonaws.com"]
     }
   }
 }
