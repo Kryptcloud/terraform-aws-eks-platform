@@ -2,11 +2,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kryptcloud-app-ingress
-  namespace: default
   annotations:
-    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
+    kubernetes.io/ingress.class: alb
+    # Add your specific subnet IDs right here:
+    alb.ingress.kubernetes.io/subnets: subnet-09b57e2468611cb48, subnet-0defbdaf9e7427c0c
 spec:
   rules:
   - http:
