@@ -87,6 +87,6 @@ jobs:
 
       - name: Authenticate Kubeconfig & Deploy to EKS
         run: |
-          aws eks update-kubeconfig --region eu-north-1 --name dev-vpc-eks
+          aws eks update-kubeconfig --region eu-north-1 --name dev-eks-cluster
           sed -i "s|IMAGE_PLACEHOLDER|${{ steps.login-ecr.outputs.registry }}/dev-my-kubernetes-app:${{ github.sha }}|g" kubernetes/deployment.yaml
           kubectl apply -f kubernetes/
