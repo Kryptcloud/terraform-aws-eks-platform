@@ -60,7 +60,7 @@ Users
 
 # Architecture Diagram
 
-![Architecture](./diagrams/architecture.png)
+![Architecture](./diagrams/Architecture.png)
 
 ---
 
