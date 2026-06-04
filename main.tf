@@ -58,6 +58,10 @@ module "security_groups" {
 module "iam" {
   source      = "./modules/iam"
   environment = var.environment
+
+  # 🔗 Connects your updated EKS outputs to your IAM module
+  eks_oidc_provider_arn = module.eks.oidc_provider_arn
+  eks_oidc_provider_url = module.eks.oidc_provider_url
 }
 
 

@@ -18,3 +18,21 @@ resource "aws_eks_cluster" "krypt" {
     Environment = var.environment
   }
 }
+
+
+# Fetch the OIDC issuer certificate thumbprint
+data "tls_certificate" "krypt" {
+  url = aws_eks_cluster.krypt.identity[0].oidc[0].issuer
+}
+
+# Create the OIDC Provider for IAM Identity Federation
+resource "aws_iam_openid_connect_provider" "krypt" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.krypt.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.krypt.identity[0].oidc[0].issuer
+
+  tags = {
+    Name        = "${var.environment}-eks-oidc-provider"
+    Environment = var.environment
+  }
+}
