@@ -94,16 +94,21 @@ jobs:
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
-          
+
+           # Dynamically fetch the AWS Account ID and VPC ID to set the correct IAM Role ARN for the Load Balancer Controller
+
           AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          VPC_ID=$(aws eks describe-cluster --name dev-eks-cluster --region eu-north-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
           
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
-            -n kube-system \
-            --set clusterName=dev-eks-cluster \
-            --set serviceAccount.create=true \
-            --set serviceAccount.name=aws-load-balancer-controller \
-            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::${AWS_ACCOUNT_ID}:role/dev-aws-load-balancer-controller-role
-
+          -n kube-system \
+          --set clusterName=dev-eks-cluster \
+          --set serviceAccount.create=true \
+          --set serviceAccount.name=aws-load-balancer-controller \
+          --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::${AWS_ACCOUNT_ID}:role/dev-aws-load-balancer-controller-role \
+          --set vpcId=${VPC_ID} \
+          --set region=eu-north-1
+          
       # 3. Inject the dynamic ECR image tag and roll out all Kubernetes manifests
       - name: Deploy Application Manifests to EKS
         run: |
