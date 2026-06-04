@@ -1,5 +1,5 @@
 # ==========================================
-# STAGE 1: THE BUILD ENGINE (Development)
+# STAGE 1: THE BUILD STAGE (Development)
 # ==========================================
 FROM node:20-alpine AS builder
 
@@ -13,9 +13,10 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy the rest of my application source code into the layer
+# (This brings in tsconfig.json and the app/src folder perfectly)
 COPY . .
 
-# Build your production assets (e.g., compile TypeScript or minify code)
+# Build my production assets (e.g., compile TypeScript or minify code)
 RUN npm run build
 
 
