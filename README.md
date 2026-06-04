@@ -490,12 +490,6 @@ The platform was successfully validated through:
 
 
 
-# Screenshots
-
-## Architecture Diagram
-
-Insert architecture diagram here.
-
 
 
 ## GitHub Actions Pipeline
