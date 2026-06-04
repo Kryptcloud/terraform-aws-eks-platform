@@ -8,7 +8,7 @@ The platform provisions a complete Amazon EKS environment using modular Terrafor
 
 This project was designed to simulate a real-world DevOps deployment workflow where infrastructure provisioning and application delivery are fully automated.
 
----
+
 
 # Architecture
 
@@ -54,15 +54,15 @@ Application Load Balancer
         │
         ▼
 Users
+
 ```
 
----
+
 
 # Architecture Diagram
+Check Diagram folder on the repo
 
-![Architecture](./diagrams/architecture.png)
 
----
 
 # Technology Stack
 
@@ -89,6 +89,7 @@ Users
 
 * Kubernetes
 * Amazon EKS
+* Helm
 
 ## CI/CD
 
@@ -142,6 +143,7 @@ terraform-aws-eks-platform/
 ├── variables.tf
 ├── outputs.tf
 └── providers.tf
+
 ```
 
 ---
@@ -154,6 +156,7 @@ A dedicated Virtual Private Cloud provides network isolation for all platform re
 
 ```text
 CIDR Block: 10.0.0.0/16
+
 ```
 
 ---
@@ -168,6 +171,7 @@ Public subnets host:
 ```text
 10.0.1.0/24
 10.0.2.0/24
+
 ```
 
 ---
@@ -182,21 +186,16 @@ Private subnets host:
 ```text
 10.0.3.0/24
 10.0.4.0/24
+
 ```
-
-
 
 ## Internet Gateway
 
 Provides internet connectivity to public resources.
 
-
-
 ## NAT Gateway
 
 Allows private resources to reach external services without exposing them directly to the internet.
-
-
 
 ## Security Groups
 
@@ -205,8 +204,6 @@ Security groups control network access between:
 * Application Load Balancer
 * EKS Worker Nodes
 * Kubernetes Workloads
-
-
 
 ## Amazon EKS
 
@@ -219,8 +216,6 @@ Features:
 * IAM integration
 * Load balancer integration
 
-
-
 ## Amazon ECR
 
 Amazon Elastic Container Registry stores Docker images generated during CI/CD execution.
@@ -229,9 +224,10 @@ Repository Example:
 
 ```text
 dev-my-kubernetes-app
+
 ```
 
-
+---
 
 # Sample Application
 
@@ -245,9 +241,10 @@ The application exists solely to provide a deployable container workload for EKS
 console.log(
   "Hello from Kryptcloud Platform! EKS is ready to run this container."
 );
+
 ```
 
-
+---
 
 # Docker Containerization
 
@@ -257,21 +254,24 @@ The TypeScript application is packaged into a Docker image.
 
 ```bash
 docker build -t krypt-app .
+
 ```
 
 ## Tag
 
 ```bash
 docker tag krypt-app:latest <ecr-uri>:latest
+
 ```
 
 ## Push
 
 ```bash
 docker push <ecr-uri>:latest
+
 ```
 
-
+---
 
 # Kubernetes Deployment
 
@@ -281,6 +281,7 @@ The platform deploys the application into Amazon EKS using:
 
 ```text
 deployment.yaml
+
 ```
 
 Responsible for:
@@ -293,6 +294,7 @@ Responsible for:
 
 ```text
 service.yaml
+
 ```
 
 Responsible for:
@@ -304,6 +306,7 @@ Responsible for:
 
 ```text
 ingress.yaml
+
 ```
 
 Responsible for:
@@ -312,7 +315,7 @@ Responsible for:
 * ALB integration
 * HTTP routing
 
-
+---
 
 # CI/CD Pipeline
 
@@ -334,6 +337,7 @@ Terraform Validate
 Terraform Plan
       │
 Terraform Apply
+
 ```
 
 ---
@@ -354,6 +358,7 @@ Push Image To ECR
 Update Kubernetes Manifest
       │
 kubectl Apply
+
 ```
 
 ---
@@ -366,114 +371,158 @@ Kubernetes manifests use a placeholder image reference:
 
 ```yaml
 image: IMAGE_PLACEHOLDER
+
 ```
 
 GitHub Actions replaces the placeholder during deployment:
 
 ```bash
 sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_URI}|g" kubernetes/deployment.yaml
+
 ```
 
 This guarantees that each deployment uses the exact image produced by the current pipeline execution.
 
 ---
 
-# Problems Encountered & Resolutions
+# Troubleshooting & Engineering Challenges
 
 ## Variable Alignment and Cyclic Dependencies
 
 ### Issue
 
-Terraform modules referenced inconsistent variable names:
-
-```text
-var.igw_id
-```
-
-while the root module declared:
-
-```text
-internet_gateway_id
-```
-
-The Internet Gateway module also attempted to reference its own output, creating a cyclic dependency.
+When starting out, our Terraform modules were throwing errors because they referenced inconsistent variable names across files (like `var.igw_id` vs `internet_gateway_id`). To make things more complicated, the Internet Gateway module was trying to reference its own output, which triggered a cyclic dependency loop that broke the plan phase.
 
 ### Resolution
 
-* Standardized variable names
-* Removed self-referencing assignments
-* Removed unnecessary IGW input variables
+We cleaned up the module inputs and outputs, standardized the variable names across the root and child modules, and stripped out the self-referencing assignments so the graph could resolve cleanly.
 
 ---
 
-## Missing Variables File
+## Missing Variables File Path
 
 ### Issue
 
-Terraform failed to locate:
-
-```text
-dev.tfvars
-```
-
-and requested manual input.
+Terraform couldn't locate our `dev.tfvars` file during the pipeline run and kept pausing to ask for manual input for all our cluster variables.
 
 ### Resolution
 
-The variables file was located inside a nested directory.
-
-Execution was updated to:
+The variables file was tucked away inside a nested directory structure. We updated the execution flags to point directly to the correct relative path:
 
 ```bash
 terraform plan -var-file="variables/dev.tfvars"
+
 ```
 
 ---
 
-## Module Output Type Errors
+## Module Output Type Mismatches
 
 ### Issue
 
-Terraform produced:
-
-```text
-string required, but have object
-```
-
-because entire resource objects were exported instead of IDs.
+Terraform threw a `string required, but have object` error. This happened because our VPC and subnet modules were exporting entire resource objects rather than just the specific ID strings needed by downstream resources like the security groups and routing tables.
 
 ### Resolution
 
-Updated outputs to return resource IDs.
-
-Example:
+We modified the child module `outputs.tf` files to explicitly target resource IDs. For example:
 
 ```terraform
 output "vpc_id" {
   value = aws_vpc.main.id
 }
+
 ```
 
 ---
 
-## CI/CD Pipeline Refactoring
+## CI/CD Pipeline Separation
 
 ### Issue
 
-Infrastructure deployment and application deployment existed in a single workflow job.
-
-Troubleshooting and visibility became difficult.
+Originally, our infrastructure provisioning (Terraform) and application delivery (Docker/Kubernetes) were crammed into a single massive workflow job. If a pod deployment failed, it made diagnosing whether the underlying infrastructure was broken incredibly messy.
 
 ### Resolution
 
-Workflow redesigned into two independent stages using:
+We split the workflow into two clear, independent stages using the `needs:` keyword. This decoupled the compute layer from the application layer, giving us a clean dependency chain where the app only builds if the infrastructure is completely stable.
 
-```yaml
-needs:
+---
+
+## Local Terminal Context and DNS Drops
+
+### Issue
+
+After running a fresh deployment, local commands like `kubectl get nodes` would suddenly fail with `no such host` or try to point to old cluster endpoints from previous builds.
+
+### Resolution
+
+Whenever EKS or Terraform recreates or updates the cluster control plane, AWS rotates the random API endpoint string. The GitHub runner catches this automatically, but local environments get stuck caching old DNS records and credentials. We fixed this by manually forcing a local configuration update to pull down the live endpoint ID:
+
+```bash
+aws eks update-kubeconfig --region eu-north-1 --name dev-eks-cluster
+
 ```
 
-This established a clear dependency chain between infrastructure provisioning and application deployment.
+---
 
+## AWS Load Balancer Controller CrashLoopBackOff (IMDS Timeouts)
+
+### Issue
+
+The AWS Load Balancer Controller pods kept crashing on startup with a `CrashLoopBackOff` state. Looking at the container logs, we found the culprit:
+`failed to get VPC ID: failed to fetch VPC ID from instance metadata: context deadline exceeded`
+
+### Resolution
+
+By default, the controller tries to figure out where it is by hitting the EC2 Instance Metadata Service (IMDS). Because EKS blocks direct pod access to IMDS out of the box for security, the controller simply timed out and died.
+
+Instead of writing massive, complex Terraform blocks to handle native AWS ALB integration at the core infrastructure layer, I decided to handle this cleanly at the Helm delivery stage using IAM roles for service accounts (IRSA). I updated the pipeline step to dynamically query AWS for our runtime account ID and VPC ID, then injected those parameters straight into the Helm configuration flags to bypass IMDS completely:
+
+```yaml
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+VPC_ID=$(aws eks describe-cluster --name dev-eks-cluster --region eu-north-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
+
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=dev-eks-cluster \
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::${AWS_ACCOUNT_ID}:role/dev-aws-load-balancer-controller-role \
+  --set vpcId=${VPC_ID} \
+  --set region=eu-north-1
+
+```
+
+---
+
+## Ingress Target Subnet Auto-Discovery Failures
+
+### Issue
+
+Once the controller was running smoothly, running `kubectl get ingress` still left our public `ADDRESS` field completely blank. Running a `kubectl describe ingress` showed an error event:
+`couldn't auto-discover subnets: unable to resolve at least one subnet. Evaluated 2 subnets: 2 are tagged for other clusters`
+
+### Resolution
+
+The controller couldn't automatically determine which public subnets were safe to attach to an internet-facing load balancer due to overlapping cluster tags. To bypass auto-discovery entirely, I pulled our cluster's exact subnets directly via the AWS CLI:
+
+```bash
+aws eks describe-cluster --name dev-eks-cluster --region eu-north-1 --query "cluster.resourcesVpcConfig.subnetIds" --output text
+
+```
+
+Then, I hardcoded those subnet IDs right into the `kubernetes/ingress.yaml` annotations, forcing the controller to use our specific public-facing subnets:
+
+```yaml
+metadata:
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/subnets: subnet-09b57e2468611cb48, subnet-0defbdaf9e7427c0c
+
+```
+
+---
 
 # Validation
 
@@ -486,65 +535,29 @@ The platform was successfully validated through:
 * Docker image builds
 * Kubernetes deployments
 * GitHub Actions automation
-* Application Load Balancer integration
-
-
-
-# Screenshots
-
-## Architecture Diagram
-
-Insert architecture diagram here.
-
-
-
-## GitHub Actions Pipeline
-
-Insert successful workflow execution screenshot here.
-
-
-
-## Amazon EKS Cluster
-
-Insert EKS cluster screenshot here.
-
-
-
-## Amazon ECR Repository
-
-Insert ECR repository screenshot here.
-
-
-
-## Running Kubernetes Pods
-
-Insert kubectl get pods screenshot here.
+* Application Load Balancer provisioning with a live public address
 
 
 
 # Skills Demonstrated
 
 * Infrastructure as Code (Terraform)
-* AWS Networking
-* Amazon VPC Design
+* AWS Networking & VPC Design
 * Amazon EKS Administration
+* Helm Chart Deployments
 * Amazon ECR Management
 * Docker Containerization
-* Kubernetes Workloads
-* Kubernetes Networking
-* GitHub Actions CI/CD
-* Modular Terraform Design
-* IAM Configuration
-* Route Table Management
-* Security Group Design
-* Infrastructure Troubleshooting
-* Production Deployment Workflows
+* Kubernetes Workloads & Networking
+* GitHub Actions CI/CD Pipelines
+* IAM Configuration & IRSA (IAM Roles for Service Accounts)
+* Routing and Security Group Topology
+* Production Infrastructure Troubleshooting
 
 
 
-# Author#
+# Author
 
-**Fidelis Adibe(kryptcloud)**
+**Fidelis Adibe (kryptcloud)**
 
 DevOps Engineer | Cloud Infrastructure Engineer
 
